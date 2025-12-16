@@ -24,7 +24,7 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const API_URL = 'http://127.0.0.1:5000';
+const API_URL = 'http://localhost:5000';
 
 function LocationMarker({ setLocation }) {
     const [position, setPosition] = useState(null);
@@ -51,6 +51,7 @@ function MainTool({ language, setLanguage }) {
     const t = translations[language] || translations['en'];
 
     const [info, setInfo] = useState({ districts: [], seasons: [], crops: [] });
+    const [fetchError, setFetchError] = useState(null);
     const [formData, setFormData] = useState({
         district: '',
         season: '',
@@ -66,15 +67,24 @@ function MainTool({ language, setLanguage }) {
     });
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
+    const fetchInfo = () => {
+        setFetchError(null);
         axios.get(`${API_URL}/info`)
             .then(res => {
+                console.log("Info fetched:", res.data);
                 setInfo(res.data);
                 if (res.data.districts.length > 0) setFormData(prev => ({ ...prev, district: res.data.districts[0] }));
                 if (res.data.seasons.length > 0) setFormData(prev => ({ ...prev, season: res.data.seasons[0] }));
                 if (res.data.crops.length > 0) setFormData(prev => ({ ...prev, crop: res.data.crops[0] }));
             })
-            .catch(err => console.error("Error fetching info:", err));
+            .catch(err => {
+                console.error("Error fetching info:", err);
+                setFetchError("Failed to connect to backend. Is it running?");
+            });
+    };
+
+    useEffect(() => {
+        fetchInfo();
     }, []);
 
     // Auto-update slope based on district
@@ -208,9 +218,18 @@ function MainTool({ language, setLanguage }) {
                             <div className="input-wrapper">
                                 <MapPin size={18} className="input-icon" />
                                 <select name="district" value={formData.district} onChange={handleInputChange}>
-                                    {info.districts.map(d => <option key={d} value={d}>{d}</option>)}
+                                    {info.districts.length > 0 ? (
+                                        info.districts.map(d => <option key={d} value={d}>{d}</option>)
+                                    ) : (
+                                        <option>Loading...</option>
+                                    )}
                                 </select>
                             </div>
+                            {fetchError && (
+                                <div style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                                    {fetchError} <button onClick={fetchInfo} style={{ textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', color: 'red' }}>Retry</button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Map Integration */}
